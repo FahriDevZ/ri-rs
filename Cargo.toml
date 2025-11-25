@@ -1,0 +1,17 @@
+[workspace]
+resolver = "3"
+members = ["ri-cookie-header-string"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+rust-version = "1.88.0"
+repository = "https://github.com/FahriDev/ri-rs"
+authors = ["FahriDev <saya@fahri.dev>"]
+description = "RI Rust is a collection of Rust libraries for personal projects."
+
+[workspace.dependencies]
+ri-cookie-header-string = { path = "ri-cookie-header-string" }
+
+cookie = { version = "0.18", default-features = false }

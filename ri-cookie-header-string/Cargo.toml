@@ -1,0 +1,18 @@
+[package]
+name = "ri-cookie-header-string"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "A library for parsing HTTP Cookie header strings into structured cookie objects."
+keywords = ["cookie", "http", "parsing", "header", "percent-encoding"]
+categories = ["web-programming", "parsing"]
+
+[features]
+default = []
+percent-encode = ["cookie/percent-encode"]
+
+[dependencies]
+cookie = { workspace = true, default-features = false }

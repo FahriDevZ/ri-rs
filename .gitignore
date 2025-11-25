@@ -1,0 +1,43 @@
+# Rust build artifacts
+/target
+**/*.rs.bk
+*.pdb
+
+# Cargo
+Cargo.lock  # Uncomment if this is a library (not a binary)
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Backup files
+*.bak
+*.tmp
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Test coverage
+tarpaulin-report.html
+cobertura.xml
+lcov.info
+*.gcda
+*.gcno
