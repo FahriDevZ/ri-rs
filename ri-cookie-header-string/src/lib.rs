@@ -1,8 +1,7 @@
 //! A library for parsing HTTP Cookie header strings into structured cookie objects.
 //!
-//! This crate provides an extension trait for the [`cookie`] crate that enables advanced parsing
-//! of cookie header strings (as received in HTTP `Cookie` headers) into a collection of
-//! [`Cookie`] objects.
+//! This crate provides extension traits for parsing cookie header strings into structured cookie objects.
+//! It supports multiple cookie implementations including the [`cookie`] crate and optionally [`reqwest`].
 //!
 //! **Note**: This is a **non-standard, security-focused parser**. Unlike the standard `SplitCookies` iterator
 //! and RFC 6265 compliance, this library provides smarter parsing for unquoted cookie values that may contain
@@ -18,6 +17,7 @@
 //!   graceful handling of malformed entries
 //! - **Percent-encoding support**: Enable the `percent-encode` feature to decode percent-encoded
 //!   cookie values (e.g., `%20` for space)
+//! - **Multiple cookie implementations**: Support for `cookie` crate and optionally `reqwest` via feature flag
 //!
 //! # When to Use This Library
 //!
@@ -25,6 +25,7 @@
 //! - Parsing non-standard cookie headers with unquoted values containing semicolons
 //! - You need safety when handling untrusted cookie input with unusual formatting
 //! - Your application requires advanced heuristics to detect cookie boundaries
+//! - You work with different cookie implementations across your project
 //!
 //! **Note**: For standard RFC 6265-compliant cookie parsing, the built-in `cookie` crate
 //! provides `SplitCookies` which is more performant and spec-compliant.
@@ -47,9 +48,17 @@
 //! cookie = "0.18"
 //! ```
 //!
+//! For reqwest support, enable the `reqwest` feature:
+//!
+//! ```toml
+//! [dependencies]
+//! ri-cookie-header-string = { version = "0.1", features = ["reqwest"] }
+//! reqwest = { version = "0.12", features = ["cookies"] }
+//! ```
+//!
 //! # Examples
 //!
-//! Basic usage:
+//! Basic usage with `cookie` crate:
 //!
 //! ```
 //! use ri_cookie_header_string::CookieHeaderStringExt;
@@ -83,6 +92,22 @@
 use cookie::{Cookie, ParseError};
 use std::borrow::Cow;
 
+/// Internal trait for abstracting cookie construction across different cookie implementations.
+///
+/// This trait allows the parser to work with different cookie types (e.g., `cookie::Cookie`,
+/// `reqwest::cookie::Cookie`) by providing a common interface for creating cookies.
+pub trait CookieBuilder: Sized {
+    /// Create a new cookie with the given name and value.
+    fn new(name: String, value: String) -> Self;
+
+    /// Create a cookie from a percent-encoded string.
+    ///
+    /// This is only called when the `percent-encode` feature is enabled
+    /// and the cookie value contains `%` characters.
+    #[cfg(feature = "percent-encode")]
+    fn parse_encoded(cookie_str: String) -> Result<Self, ParseError>;
+}
+
 /// Iterator over cookies in a header string.
 ///
 /// This iterator provides advanced parsing for non-standard cookie headers with unquoted
@@ -90,11 +115,13 @@ use std::borrow::Cow;
 /// real-world edge cases in cookie parsing.
 ///
 /// Based on the `cookie` crate's `SplitCookies` iterator with enhanced heuristics.
-pub struct HeaderStringCookies<'c> {
+pub struct HeaderStringCookies<'c, C: CookieBuilder> {
     // The source string, which we split and parse.
     string: Cow<'c, str>,
     // The index where we last split off.
     last: usize,
+    // Phantom data to hold the cookie builder type
+    _phantom: std::marker::PhantomData<C>,
 }
 
 /// Helper: check if byte can start a cookie name (alphanumeric or underscore).
@@ -106,8 +133,8 @@ fn is_cookie_name_start(b: u8) -> bool {
     matches!(b, b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' | b'_')
 }
 
-impl<'c> Iterator for HeaderStringCookies<'c> {
-    type Item = Result<Cookie<'c>, ParseError>;
+impl<'c, C: CookieBuilder> Iterator for HeaderStringCookies<'c, C> {
+    type Item = Result<C, ParseError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let s = self.string.as_ref();
@@ -183,7 +210,7 @@ impl<'c> Iterator for HeaderStringCookies<'c> {
                 continue;
             }
 
-            // Create cookie - using Cow with owned strings to maintain lifetime
+            // Create cookie - using owned strings for compatibility across implementations
             let cookie_result = if val.contains('%') {
                 #[cfg(feature = "percent-encode")]
                 {
@@ -192,15 +219,15 @@ impl<'c> Iterator for HeaderStringCookies<'c> {
                     cookie_str_buf.push_str(name);
                     cookie_str_buf.push('=');
                     cookie_str_buf.push_str(val);
-                    Cookie::parse_encoded(cookie_str_buf)
+                    C::parse_encoded(cookie_str_buf)
                 }
                 #[cfg(not(feature = "percent-encode"))]
                 {
                     // Without percent-encode feature, treat % as literal character
-                    Ok(Cookie::new(name.to_string(), val.to_string()))
+                    Ok(C::new(name.to_string(), val.to_string()))
                 }
             } else {
-                Ok(Cookie::new(name.to_string(), val.to_string()))
+                Ok(C::new(name.to_string(), val.to_string()))
             };
 
             return Some(cookie_result);
@@ -210,7 +237,7 @@ impl<'c> Iterator for HeaderStringCookies<'c> {
     }
 }
 
-impl<'c> HeaderStringCookies<'c> {
+impl<'c, C: CookieBuilder> HeaderStringCookies<'c, C> {
     /// Find the real cookie separator when a semicolon appears within an unquoted value.
     ///
     /// This method uses heuristics to determine if a semicolon is a cookie separator
@@ -258,21 +285,76 @@ impl<'c> HeaderStringCookies<'c> {
     }
 }
 
-pub trait CookieHeaderStringExt<'c> {
-    fn header_string_parse<S>(string: S) -> HeaderStringCookies<'c>
+pub trait CookieHeaderStringExt<'c, C: CookieBuilder> {
+    fn header_string_parse<S>(string: S) -> HeaderStringCookies<'c, C>
     where
         S: Into<Cow<'c, str>>;
 }
 
-impl<'c> CookieHeaderStringExt<'c> for Cookie<'c> {
+/// Implementation of CookieBuilder for `cookie::Cookie`
+impl CookieBuilder for Cookie<'static> {
+    fn new(name: String, value: String) -> Self {
+        Cookie::new(name, value)
+    }
+
+    #[cfg(feature = "percent-encode")]
+    fn parse_encoded(cookie_str: String) -> Result<Self, ParseError> {
+        Cookie::parse_encoded(cookie_str)
+    }
+}
+
+impl<'c> CookieHeaderStringExt<'c, Cookie<'static>> for Cookie<'c> {
     #[inline(always)]
-    fn header_string_parse<S>(string: S) -> HeaderStringCookies<'c>
+    fn header_string_parse<S>(string: S) -> HeaderStringCookies<'c, Cookie<'static>>
     where
         S: Into<Cow<'c, str>>,
     {
         HeaderStringCookies {
             string: string.into(),
             last: 0,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+/// Optional support for reqwest integration when `reqwest` feature is enabled.
+#[cfg(feature = "reqwest")]
+pub mod reqwest_support {
+    use super::*;
+
+    /// Parse a cookie header string into cookies compatible with reqwest.
+    ///
+    /// This function parses HTTP Cookie header strings into `cookie::Cookie` objects
+    /// that can be used with reqwest. Since `reqwest::cookie::Cookie` is a read-only
+    /// wrapper, we work with the underlying `cookie::Cookie` type.
+    ///
+    /// # Example
+    ///
+    /// ```text
+    /// use ri_cookie_header_string::reqwest_support::parse_for_reqwest;
+    /// use url::Url;
+    ///
+    /// let cookie_header = "session=abc123; user=john";
+    /// let cookies: Vec<_> = parse_for_reqwest(cookie_header)
+    ///     .filter_map(|result| result.ok())
+    ///     .collect();
+    ///
+    /// // Use with reqwest cookie jar
+    /// let jar = reqwest::cookie::Jar::default();
+    /// let url: Url = "https://example.com".parse().unwrap();
+    /// for cookie in cookies {
+    ///     // Cookies can be serialized and added to jar
+    ///     jar.add_cookie_str(&cookie.to_string(), &url);
+    /// }
+    /// ```
+    pub fn parse_for_reqwest<'c, S>(string: S) -> HeaderStringCookies<'c, Cookie<'static>>
+    where
+        S: Into<Cow<'c, str>>,
+    {
+        HeaderStringCookies {
+            string: string.into(),
+            last: 0,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
@@ -402,5 +484,20 @@ mod tests {
 
         assert_eq!(cookies.len(), 2);
         assert_eq!(cookies[0].name(), "session-id");
+    }
+
+    #[test]
+    #[cfg(feature = "reqwest")]
+    fn header_string_parse_reqwest() {
+        use crate::reqwest_support::parse_for_reqwest;
+
+        let cookie_header = "session=abc;123; other=value";
+        let cookies: Vec<_> = parse_for_reqwest(cookie_header)
+            .filter_map(|result| result.ok())
+            .collect();
+
+        assert_eq!(cookies.len(), 2);
+        assert_eq!(cookies[0].value(), "abc;123");
+        assert_eq!(cookies[1].value(), "value");
     }
 }

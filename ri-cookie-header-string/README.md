@@ -82,3 +82,43 @@ for result in Cookie::header_string_parse(cookie_header) {
     }
 }
 ```
+
+### Using with Reqwest
+
+When the `reqwest` feature is enabled, you can parse cookies for use with the `reqwest` HTTP client:
+
+```toml
+[dependencies]
+ri-cookie-header-string = { version = "0.1", features = ["reqwest"] }
+reqwest = { version = "0.12", features = ["cookies"] }
+```
+
+Usage:
+
+```rust
+use ri_cookie_header_string::reqwest_support::parse_for_reqwest;
+
+let cookie_header = "session=abc123; user=john";
+let cookies: Vec<_> = parse_for_reqwest(cookie_header)
+    .filter_map(|result| result.ok())
+    .collect();
+
+// Add cookies to a reqwest cookie jar
+let jar = reqwest::cookie::Jar::default();
+let url = "https://example.com".parse().unwrap();
+for cookie in cookies {
+    jar.add_cookie_str(&cookie.to_string(), &url);
+}
+```
+
+## Running Examples
+
+The library includes examples demonstrating both `cookie` and `reqwest` usage:
+
+```bash
+# Basic cookie parsing example
+cargo run --example cookie_usage
+
+# Reqwest integration example
+cargo run --example reqwest_usage --features reqwest
+```
