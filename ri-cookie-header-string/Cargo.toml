@@ -9,6 +9,7 @@ authors.workspace = true
 description = "A library for parsing HTTP Cookie header strings into structured cookie objects."
 keywords = ["cookie", "http", "parsing", "header", "percent-encoding"]
 categories = ["web-programming", "parsing"]
+documentation = "https://docs.rs/ri-cookie-header-string"
 
 [features]
 default = []
