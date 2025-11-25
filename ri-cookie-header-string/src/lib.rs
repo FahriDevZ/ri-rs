@@ -36,7 +36,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! ri-cookie-header-string = "0.1"
+//! ri-cookie-header-string = "0.2"
 //! cookie = "0.18"
 //! ```
 //!
@@ -44,7 +44,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! ri-cookie-header-string = { version = "0.1", features = ["percent-encode"] }
+//! ri-cookie-header-string = { version = "0.2", features = ["percent-encode"] }
 //! cookie = "0.18"
 //! ```
 //!
@@ -52,7 +52,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! ri-cookie-header-string = { version = "0.1", features = ["reqwest"] }
+//! ri-cookie-header-string = { version = "0.2", features = ["reqwest"] }
 //! reqwest = { version = "0.12", features = ["cookies"] }
 //! ```
 //!
@@ -492,9 +492,7 @@ mod tests {
         use crate::reqwest_support::parse_for_reqwest;
 
         let cookie_header = "session=abc;123; other=value";
-        let cookies: Vec<_> = parse_for_reqwest(cookie_header)
-            .filter_map(|result| result.ok())
-            .collect();
+        let cookies: Vec<_> = parse_for_reqwest(cookie_header).filter_map(|result| result.ok()).collect();
 
         assert_eq!(cookies.len(), 2);
         assert_eq!(cookies[0].value(), "abc;123");

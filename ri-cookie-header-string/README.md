@@ -19,7 +19,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ri-cookie-header-string = "0.1"
+ri-cookie-header-string = "0.2"
 cookie = "0.18"
 ```
 
@@ -27,7 +27,7 @@ It's recommended to enable the `percent-encode` feature:
 
 ```toml
 [dependencies]
-ri-cookie-header-string = { version = "0.1", features = ["percent-encode"] }
+ri-cookie-header-string = { version = "0.2", features = ["percent-encode"] }
 cookie = "0.18"
 ```
 
@@ -89,7 +89,7 @@ When the `reqwest` feature is enabled, you can parse cookies for use with the `r
 
 ```toml
 [dependencies]
-ri-cookie-header-string = { version = "0.1", features = ["reqwest"] }
+ri-cookie-header-string = { version = "0.2", features = ["reqwest"] }
 reqwest = { version = "0.12", features = ["cookies"] }
 ```
 

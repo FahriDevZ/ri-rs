@@ -7,9 +7,7 @@ fn main() {
     use ri_cookie_header_string::reqwest_support::parse_for_reqwest;
 
     let cookie_header = "session=abc;xyz; user=john; token=abc123";
-    let cookies: Vec<_> = parse_for_reqwest(cookie_header)
-        .filter_map(|result| result.ok())
-        .collect();
+    let cookies: Vec<_> = parse_for_reqwest(cookie_header).filter_map(|result| result.ok()).collect();
 
     println!("Parsed {} cookies:", cookies.len());
     for cookie in &cookies {
