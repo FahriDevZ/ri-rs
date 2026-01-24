@@ -6,8 +6,8 @@ members = ["ri-cookie-header-string"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.88.0"
-repository = "https://github.com/FahriDev/ri-rs"
-authors = ["FahriDev <saya@fahri.dev>"]
+repository = "https://github.com/FahriDevZ/ri-rs"
+authors = ["Fahri <saya@fahri.dev>"]
 description = "RI Rust is a collection of Rust libraries for personal projects."
 
 [workspace.dependencies]
